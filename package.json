@@ -1,6 +1,16 @@
 {
+  "name": "real-time-quiz-game",
+  "version": "1.0.0",
+  "description": "A real-time quiz game using WebSocket for server-client communication.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
   "dependencies": {
-    "express": "^4.19.2",
-    "ws": "^8.17.0"
-  }
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "ws": "^7.5.0"
+  },
+  "author": "Seu Nome",
+  "license": "ISC"
 }

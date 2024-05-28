@@ -1,26 +1,158 @@
-const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
+const WebSocket = require('ws');
+const fs = require('fs');
+const dotenv = require('dotenv');
+
+dotenv.config();
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Configurar rota para o cliente
-app.use(express.static('public'));
+const PORT = process.env.PORT || 3000;
+let questions = JSON.parse(fs.readFileSync('./src/questions.json'));
+let clients = [];
+let scores = {}; // Ensure scores is properly initialized as an empty object
+let currentQuestionIndex = 0;
+let gameDuration = 60000; // 60 seconds
+let gameTimer;
+let gameStarted = false;
 
-// Inicializar o servidor WebSocket
-wss.on('connection', function connection(ws) {
-    console.log('Novo cliente conectado');
+wss.on('connection', (ws) => {
+    if (clients.length < 2) {
+        clients.push(ws);
+        ws.send(JSON.stringify({ type: 'welcome', message: 'Bem-vindo ao Quiz Game!' }));
 
-    ws.on('message', function incoming(message) {
-        console.log('Mensagem recebida:', message);
-    });
+        ws.on('message', (message) => {
+            try {
+                const data = JSON.parse(message);
+                handleClientMessage(ws, data);
+            } catch (error) {
+                console.error('Invalid message format:', error);
+            }
+        });
 
-    ws.send('Conexão estabelecida com o servidor');
+        ws.on('close', () => {
+            clients = clients.filter(client => client !== ws);
+            if (clients.length < 2 && gameStarted) {
+                endGame('Um jogador desconectou. Jogo terminado.');
+            }
+        });
+
+        if (clients.length === 2) {
+            broadcast({ type: 'ready', message: 'O jogo pode começar. Clique em Iniciar para começar o jogo.' });
+        } else {
+            ws.send(JSON.stringify({ type: 'error', message: 'Espere seu amigo.' }));
+        }
+    } else {
+        ws.send(JSON.stringify({ type: 'error', message: 'O jogo já está cheio.' }));
+        ws.close();
+    }
 });
 
-// Iniciar o servidor
-const PORT = process.env.PORT || 3000;
+function handleClientMessage(ws, data) {
+    switch (data.type) {
+        case 'join':
+            handleJoin(ws, data);
+            break;
+        case 'start':
+            handleStart();
+            break;
+        case 'reset':
+            handleReset();
+            break;
+        case 'answer':
+            handleAnswer(data);
+            break;
+        default:
+            ws.send(JSON.stringify({ type: 'error', message: 'Tipo de mensagem desconhecido.' }));
+            break;
+    }
+}
+
+function handleJoin(ws, data) {
+    if (!scores.hasOwnProperty(data.player)) {
+        scores[data.player] = 0;
+        broadcast({ type: 'join', message: `${data.player} entrou no jogo!` });
+    } else {
+        ws.send(JSON.stringify({ type: 'error', message: 'Nome já em uso!' }));
+    }
+}
+
+function handleStart() {
+    if (!gameStarted) {
+        gameStarted = true;
+        startGame();
+        broadcast({ type: 'start' });
+    }
+}
+
+function handleReset() {
+    resetGame();
+    broadcast({ type: 'reset' });
+}
+
+function handleAnswer(data) {
+    const question = questions[data.questionIndex];
+    if (question && data.answerIndex === question.correct) {
+        if (!scores[data.player]) {
+            scores[data.player] = 0;
+        }
+        scores[data.player]++;
+        broadcast({ type: 'correct', player: data.player, score: scores[data.player] });
+    } else {
+        scores[data.player]--;
+        broadcast({ type: 'incorrect', player: data.player });
+    }
+    if (currentQuestionIndex < questions.length - 1) {
+        currentQuestionIndex++;
+        sendQuestion();
+    } else {
+        endGame();
+    }
+}
+
+function sendQuestion() {
+    if (currentQuestionIndex < questions.length) {
+        const question = questions[currentQuestionIndex];
+        broadcast({ type: 'question', question: question.question, answers: question.answers, questionIndex: currentQuestionIndex });
+    }
+}
+
+function startGame() {
+    currentQuestionIndex = 0;
+    scores = {}; // Ensure scores is reset properly at the start of the game
+    gameTimer = setTimeout(() => {
+        endGame('Acabou o tempo');
+    }, gameDuration);
+    sendQuestion();
+}
+
+function endGame(reason = '') {
+    clearTimeout(gameTimer);
+    const maxScore = Math.max(...Object.values(scores));
+    const winners = Object.keys(scores).filter(player => scores[player] === maxScore);
+    const message = `Fim de jogo! ${reason ? reason + ' ' : ''}Ganhador: ${winners.join(', ')}. Pontos: ${JSON.stringify(scores)}`;
+    broadcast({ type: 'end', message: message });
+    resetGame();
+}
+
+function resetGame() {
+    currentQuestionIndex = 0;
+    scores = {};
+    gameStarted = false;
+}
+
+function broadcast(data) {
+    clients.forEach(client => client.send(JSON.stringify(data)));
+    if (data.type === 'end') {
+        resetGame();
+    }
+}
+
+app.use(express.static('public'));
+
 server.listen(PORT, () => {
-    console.log(`Servidor escutando na porta ${PORT}`);
+    console.log(`Server rodando na porta ${PORT}`);
 });

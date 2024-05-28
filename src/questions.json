@@ -1,0 +1,44 @@
+
+[
+    {
+      "question": "2+2",
+      "answers": ["1", "2", "3", "4"],
+      "correct": 3
+    },
+    {
+      "question": "5+5?",
+      "answers": ["10", "2", "5", "15"],
+      "correct": 0
+    },
+    {
+      "question": "Como usar uma variavel no php?",
+      "answers": ["let", "var", "const", "$var"],
+      "correct": 3
+    },
+    {
+      "question": "Qual a cor da maçã?",
+      "answers": ["vermelho", "azul", "roxo", "branco"],
+      "correct": 0
+    },
+    {
+      "question": "Qual a cor da verde?",
+      "answers": ["vermelho", "azul", "verde", "branco"],
+      "correct": 2
+    },
+    {
+      "question": "Qual a cor da azul?",
+      "answers": ["vermelho", "azul", "roxo", "branco"],
+      "correct": 1
+    },
+    {
+      "question": "Qual a cor da roxo?",
+      "answers": ["vermelho", "azul", "roxo", "branco"],
+      "correct": 2
+    },
+    {
+      "question": "Qual a cor da branco?",
+      "answers": ["vermelho", "azul", "roxo", "branco"],
+      "correct": 3
+    }
+  ]
+  
