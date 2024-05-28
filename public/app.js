@@ -1,12 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const ws = new WebSocket('ws://localhost:3000');
-    const playerName = prompt('Informe seu nome:');
-    const startButton = document.getElementById('startButton');
-    const resetButton = document.getElementById('resetButton');
+    const ws = new WebSocket(`ws://${window.location.host}`);
+    let playerName;
 
     ws.onopen = () => {
+        while (!playerName) {
+            playerName = prompt('Informe seu nome:').trim();
+        }
         ws.send(JSON.stringify({ type: 'join', player: playerName }));
     };
+
+    const startButton = document.getElementById('startButton');
+    const resetButton = document.getElementById('resetButton');
 
     ws.onmessage = (message) => {
         const data = JSON.parse(message.data);
@@ -28,13 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         switch (data.type) {
             case 'welcome':
-                statusElement.innerText = data.message;
-                break;
             case 'join':
-                statusElement.innerText = data.message;
-                break;
             case 'ready':
-                startButton.style.display = 'block'; // Mostra o botão de iniciar quando os jogadores estão prontos
+            case 'info':
+                statusElement.innerText = data.message;
+                if (data.type === 'ready') {
+                    startButton.style.display = 'block'; // Mostra o botão de iniciar quando os jogadores estão prontos
+                }
                 break;
             case 'start':
                 startButton.style.display = 'none'; // Esconde o botão de iniciar quando o jogo começa

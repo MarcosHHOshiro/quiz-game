@@ -13,7 +13,7 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 let questions = JSON.parse(fs.readFileSync('./src/questions.json'));
 let clients = [];
-let scores = {}; // Ensure scores is properly initialized as an empty object
+let scores = {};
 let currentQuestionIndex = 0;
 let gameDuration = 60000; // 60 seconds
 let gameTimer;
@@ -41,9 +41,9 @@ wss.on('connection', (ws) => {
         });
 
         if (clients.length === 2) {
-            broadcast({ type: 'ready', message: 'O jogo pode começar. Clique em Iniciar para começar o jogo.' });
+            broadcast({ type: 'ready', message: 'Seu amigo esta entrando! Quase pronto para começar!!' });
         } else {
-            ws.send(JSON.stringify({ type: 'error', message: 'Espere seu amigo.' }));
+            ws.send(JSON.stringify({ type: 'info', message: 'Espere seu amigo.' }));
         }
     } else {
         ws.send(JSON.stringify({ type: 'error', message: 'O jogo já está cheio.' }));
@@ -57,7 +57,7 @@ function handleClientMessage(ws, data) {
             handleJoin(ws, data);
             break;
         case 'start':
-            handleStart();
+            handleStart(ws);
             break;
         case 'reset':
             handleReset();
@@ -72,16 +72,23 @@ function handleClientMessage(ws, data) {
 }
 
 function handleJoin(ws, data) {
-    if (!scores.hasOwnProperty(data.player)) {
-        scores[data.player] = 0;
-        broadcast({ type: 'join', message: `${data.player} entrou no jogo!` });
+    if (!data.player || typeof data.player !== 'string' || data.player.trim() === '') {
+        ws.send(JSON.stringify({ type: 'error', message: 'Nome inválido!' }));
+        return;
+    }
+    const playerName = data.player.trim();
+    if (!scores.hasOwnProperty(playerName)) {
+        scores[playerName] = 0;
+        broadcast({ type: 'join', message: `${playerName} entrou no jogo!` });
     } else {
         ws.send(JSON.stringify({ type: 'error', message: 'Nome já em uso!' }));
     }
 }
 
-function handleStart() {
-    if (!gameStarted) {
+function handleStart(ws) {
+    if (clients.length < 2) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Espere seu amigo.' }));
+    } else if (!gameStarted) {
         gameStarted = true;
         startGame();
         broadcast({ type: 'start' });
@@ -122,7 +129,6 @@ function sendQuestion() {
 
 function startGame() {
     currentQuestionIndex = 0;
-    scores = {}; // Ensure scores is reset properly at the start of the game
     gameTimer = setTimeout(() => {
         endGame('Acabou o tempo');
     }, gameDuration);
